@@ -1,0 +1,589 @@
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Object Test</title>
+            <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        </head>
+        <body style="background-color: #2F2E2F">
+
+            <h1 class="label_header" style="font-size: 1.5em;">Stalcraft Hideout</h1> 
+            <fieldset style="background-color: #2F2E2F;display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px;">
+                <button class="img-button" onclick="toggleRecipeMenu()"><img src="add.png" class="img-button-image"></button>
+                <button class="img-button" onclick="clear_list()"><img src="delete.png" class="img-button-image"></button>
+            </fieldset>
+            <fieldset style="background-color: #2F2E2F">
+                <div class=".summary-container">
+                    <div class="summary-outputs">
+                        <div class="label_header">Output:</div>
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 5px;" id="output-items"></div>
+                    </div>
+                    <div class="summary-inputs">
+                        <div class="label_header">Input:</div>
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 5px;"  id="input-items"></div>
+                    </div>
+                </div>
+                <fieldset>
+                    
+                    <div class="recipe-body" id="recipe-body">
+                        <div class="recipe-entry">
+                            <div class="label_val" style="width: 05%;height: 16px;">Action</div>
+                            <div class="label_val" style="width: 64px;height: 16px;">Recipe</div>
+                            <div class="label_val" style="width: 64px;height: 16px;">Where</div>
+                            <div class="label_val" style="width: 04%;height: 16px;">XP</div>
+                            <div class="label_val" style="width: 06%;height: 16px;">Energy</div>
+                            <div class="label_val" style="width: 64px;height: 16px;">Product</div>
+                            <div style="width: 16px;height: 8px;"></div>
+                            <div class="label_val" style="width: 60%;height: 16px;">Ingredients</div>
+                        </div>
+                    </div>
+                </fieldset>
+            </fieldset>
+            <div class="overlay-menu">
+                <button class="close-btn" onclick="toggleRecipeMenu()">&times;</button>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <label>Filter</label>
+                    <label>Input/Output</label>
+                    <input type="checkbox", id="input-output-toggle", checked="true" oninput="filterMenuUpdate()">
+                    <label>Item:</label>
+                    <input type="text", id="item-filter-input",value="", oninput="filterMenuUpdate()">
+                </div>
+                <div id="select-recipe", style="display:grid; grid-template-columns: 64px 64px 64px 64px; overflow: auto; height: 90%; gap: 4px;">
+
+                </div>
+            </div>
+        </body>
+
+
+        <style>
+            :root {
+                --primary-bg-color: #2F2E2F;
+                --secondary-bg-color: #1F1E1F;
+                --text-color: #FFFFFF;
+                --header-bg-color: #000000BB;
+                --item-border-color-master: #FF0000;
+                --item-border-color-veteran: #FF00FF;
+                --item-border-color-stalker: #0000FF;
+                --item-border-color-newbie: #00FF00;
+                --item-border-color-default: #FFFFFF;
+                --output-color: #2E8B57;
+                --input-color: #4682B4;
+            }
+            body {
+                background-color: var(--primary-bg-color);
+                color: var(--text-color);
+                font-family: sans-serif;
+                margin: 0;
+            }
+            
+            .label_val { color: white; background-color: #000000AA; text-align: center; }
+            .label_header { width: 100%; color: white; background-color: #000000BB; padding: 2px 5px; box-sizing: border-box; }
+            .recipe-entry { display: flex; flex-direction: row; width: 100%; height: fit-content; }
+            .recipe-body  { display: inline-grid; width: 100%; height: fit-content;}
+            .img-button {
+                background-color: green;
+                width: 32px;
+                height: 32px;
+                padding: 4px;
+                border-radius: 4px;
+                border: 1px solid #888;
+                cursor: pointer;
+            }
+            .img-button:hover {
+                background-color: #009a00;
+            }
+            .img-button img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+            .overlay-menu {
+                position: fixed;
+                top: 0;
+                right: -300px; /* Start off-screen */
+                width: 300px; /* Custom width */
+                height: 100vh;
+                background: #333;
+                color: white;
+                transition: right 0.3s ease;
+                z-index: 1000;
+                padding: 20px;
+                box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+            }
+            .overlay-menu.active {
+                right: 0;
+            }
+            .close-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: none;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+            }
+            .summary-container {
+                background-color: #1F1E1F;
+                padding: 5px;
+                min-height: 48px;
+                display: flex;
+                flex-direction: row;
+            }
+            .summary-outputs {
+                background-color: #2E8B57;
+                width: 100%;
+                max-width: 100%;
+            }
+            .summary-inputs {
+                background-color: #4682B4;
+                width: 100%;
+                max-width: 100%;
+            }
+        </style>
+        
+        <script>
+            Array.prototype.swapItems = function(a, b){
+                this[a] = this.splice(b, 1, this[a])[0];
+                return this;
+            }
+            
+            const FALLBACK_IMAGE_SRC = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' fill='%23999' font-size='12' text-anchor='middle' dominant-baseline='middle' font-family='monospace'%3E404%3C/text%3E%3C/svg%3E";
+            const KitchenSVGICON = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMCIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGQ9Im0xNTEgMTgtMTYgMmMtNSAyLTcgNi04IDEybC0xIDgtMTAgMWMtMTQgMC0xOSAyLTIzIDEwLTIgNS00IDI3LTMgMjhsMSAxNHYxMmwtMTggOS0yMCAxMi0xIDVjMCAzIDAgNC0yIDRzLTcgNS03IDhhMTEzMjUgMTEzMjUgMCAwIDEgMjQgMjc3YzMgMjEgNCAyNCA4IDI0IDMgMCA1IDMgNyAxMyAxIDggMiAxMSA0IDEyIDIgMiAyIDMgMiA4IDAgNyAyIDExIDQgMTJoMThjMy0xIDQtMiA1LTExIDAtNiAwLTcgMy03IDQtMSA1LTMgMTAtMTRsNC05aDI0NWw1IDEwYzQgOSA1IDExIDcgMTJzMyAyIDMgNWMyIDYgMyAxMSA1IDEzczMgMiAxMiAyYzE0IDAgMTUgMCAxNi0xMiAwLTggMC04IDMtOCA0IDAgNS0zIDUtMTB2LTdsLTEgNi0xIDctMjEgMWgtMjBsLTMtMTMtMy0xNCAzMC0xYzMyLTEgMzMtMSAzNi02bDMtMzZhODM5OSA4Mzk5IDAgMCAxIDE2LTI1NGMtMS0zLTYtNy04LTctMyAwLTQtMS0zLTNsMS00Yy0xLTMtMS0zLTI4LTE0bC0xOC04Vjc5YzMtNC0zLTI3LTctMzItNC00LTgtNS0yMC02aC0xMWwtMS03Yy0xLTgtMy0xMS04LTE0LTMtMi01LTItMTAyLTNsLTExMyAxem0xNTUgNGM2MSAxIDU4IDAgNTggMTN2NUgxMzJsMS02YzAtNiAyLTEwIDUtMTFhMzA2NSAzMDY1IDAgMCAxIDE2OC0xem01MCAyMmM0NiAxIDQ2IDEgNTAgOCAyIDMgNCAxMCA2IDIxbC0xIDRjLTEgMi03IDItNyAxbDItMSAyLTEtMTQ1LTFIMTE3bC0yLTNjLTMtNC0yLTEyIDMtMThsMi0zLTMgMWMtNSAzLTggMTUtNCAyMGwyIDNoLTZsLTUtMXYtM2MwLTggMy0xNiA2LTE5bDItMmg0M2ExMDYxIDEwNjEgMCAwIDAtNDQtMWMtMyAxLTYgNy04IDE3djlsMSAzYzAgMi0xMSAyLTEyIDAgMC0zIDMtMjQgNS0yNyAzLTYgNC02IDMwLTdoMjI5ek0xNTEgODNhMjg1IDI4NSAwIDAgMS00MyA0bDEwIDEgMyAxaC0zYy01IDAtNiA0LTEgNSAzIDEgNCAzIDQgOCAwIDIgMCAyLTEzIDJsLTE0LTFWODJoMjlsMjggMXptMTQ4IDBoMTEwdjIxaC04bC0xOSAxYy05IDEtMTEgMS0xMi0xLTMtMi01LTEtNSAxczAgMi0xIDFjLTEtMi0xOC0yLTExMS0yaC01M3YtNGMwLTMgMC0zIDUtNSAzIDAgMy0xIDMtMiAwLTItMS0zLTQtM2wtNS0yYy0xLTEtOS0zLTIxLTRsLTExLTEgMTEtMSAxMjEgMXptLTE3NSA2LTItMWgxYzEgMCAyIDAgMSAxem01MCAwIDYgMWgtNDJsNC0xYzAtMSA1LTIgMTgtMiA5IDAgMTMgMSAxNCAyem0tNDQgMWgtM2MtMS0xIDAtMSAyLTEgMSAwIDIgMCAxIDF6bTY1IDBoLTRjLTEtMS0xLTEgMi0xIDIgMCAzIDAgMiAxem0tNjIgM2M4IDEgNTUgMSA2MC0xIDMgMCAzIDAgMyAzczAgNC0zIDZjLTUgMy01IDMtMSAzIDItMSAzIDAgMiAxIDAgMi02IDQtMTQgNXMtMTAgMi01IDJjMyAwIDMgMCAxIDFsLTIzIDFjLTIxLTEtMjQtMS0yOS02LTItMS0yLTEgMCAwIDUgMyAxMCA0IDIxIDNoMTJsLTExLTFjLTE4LTEtMjItNC0yNC0xNGwxLTUgMTAgMnptMjYtMWgtMnYtMWwyIDF6bTE1NiAxNGgtM3YtMWwyIDF6bS0yMjEgMS0xNyAxMGMtMTAgNS0xNiA5LTE3IDExcy01IDMtNSAwYTM5NSAzOTUgMCAwIDEgMzktMjF6bTEwNCAyLTE3IDE4IDEwLTEyYzktOSAxMS0xMSA3LTZ6bTE1Mi0yaC04Yy0yLTEgMC0xIDQtMXM2IDAgNCAxem00NSAwLTExIDFoLThsOC0xIDExLTFoM2wtMyAxem0tMzQgMWgtMnYtMWwyIDF6bS0xOSAzaDNsLTQgMS02LTFjLTQtMi00LTIgMC0xbDcgMXptNjAgMGMyIDEgMiAxLTEgMWgtNmMtMyAxLTMgMSAwIDAgNS0yIDUtMiA3LTF6bS0zMTAgMi0xMSA3LTcgNWMwIDEgNSAyIDE0IDIgMTcgMSAxNyAxIDEzIDJsNDAgMWg0MmwzLTVjMy00IDMtNCA0LTIgMCA0LTEgNy01IDgtNCAyLTExIDItNTkgMi01OCAwLTYwIDAtNjEtNGwxMS04YTQ5NSA0OTUgMCAwIDAgMTYtOHptMjIzIDFjNSA0IDEwIDggNyA3bC02LTUtNy0zIDYgNSA2IDVoLTU1bC01OS0xaC0zbDItNGMyLTQgMi00IDAtNHMtMTAgOC0xMCAxMGw3MiAxIDcyIDFjMCAyLTkgMi03MiAyLTY3IDAtNzIgMC03My0ydi00YzEtMyA2LTkgOC0xMGw1NS0xaDUzbDQgM3ptLTIwMC0yLTcgMmMtNCAxLTkgMi0xMSA0bC01IDIgNSAxYTEzMDYgMTMwNiAwIDAgMC01IDFsLTQtMSAzLTIgMTUtNiA5LTF6bTI0MSAxaC00Yy0yLTEtMS0xIDItMSAyIDAgMyAwIDIgMXptNTkgMy0xIDEtNi0zIDcgMnptMjEgNGM5IDMgMTYgNyAxNyA4YTUzNyA1MzcgMCAwIDEtOTYgMWMxLTIgNS0yIDQ1LTJsNDQtMS0xMy02Yy0xNi02LTE3LTctMTUtN2wxOCA3em0tMTAzLTItMi0xLTItMiAyIDEgMiAyem0tMTYxLTFoLTExbDUtMSA2IDF6bTE5NC0xLTIwIDEgMTAtMWgxMHptLTI0NiAyem0zNSAwaC02Yy0yLTEtMS0xIDItMSA0IDAgNSAwIDQgMXptMjU5IDEgMSAyLTMtMS04LTItNS0xaDZsOSAyem0tNzEgNS0zLTItNi00IDkgNnptNTQtNCAxMiAyLTExLTEtMTktMS04LTFoN2wxOSAyem0tMzAgMS00IDFoLTNsNi0yYzIgMCAzIDAgMSAxem04MyAxOC0yIDRjLTQgMS00IDMtNCAxNHYxMGwxLTEwYzEtMTEgMS0xMiAzLTEydjE3bC0xIDIwdjNINjV2LTZhNDkxIDQ5MSAwIDAgMS0zLTM4di01aDM4OHYzem0xNSAzIDEgNy02IDk1YTgxNTcgODE1NyAwIDAgMC0xNCAxODhsLTM0IDEtMzQgMS0xIDQtMSA1LTgxIDFoLTc5bC0xLTItMi01di0zYTMxMDkgMzEwOSAwIDAgMC05MC0zbDEzMC0xaDEyOWw2LTJjMTMtNyAxMy0yMCAxLTI1LTUtMi02LTEgMCAybDcgNWMxIDIgMSA2LTMgMTEtMyA0LTQgNC0zIDAgMi02IDAtMTMtNi0xNi0zLTItOS0yLTExOC0ybC0xMTUgMWMtNyAzIDU0IDMgMTUxIDJoODFjNCAzIDYgNiA2IDExIDAgMy0xIDUtNCA4bC0zIDNIMjUybC0xMzQtMmMtNS0xLTYtMi03LTE2IDAtMTQgMC0xNCA2LTE1aDM4YzMyIDAgMzMgMCAzNS0ybDItMmg0OGM0MCAxIDQ4IDEgNDkgM2w1NyAxIDYwLTJjNS0zIDctNiA3LTEyczEtOSAzLTloMWwtMi0ydi0zMWwxMS0xMzAgMS0xMGg0YzQgMCA0IDAgNCAzbC0xNSAxMzZjLTMgMTktMyAzNSAwIDM3IDIgMyA3IDMgMTAgMCAyLTMgMi03IDQtMjd2LTExaC0yYy0zIDAtMyAwLTMgNGwtMiAzMWMtMiAyLTMtMy0yLTE1IDItMjggMi0zMiAxLTMybC0yIDhhNzQyNiA3NDI2IDAgMCAwIDEyLTExNGMyLTE5IDMtMjEgNi0yMWwxIDE1YzAgMjAtNCA5MS03IDEyMGwtNCA3NWEyNTcxIDI1NzEgMCAwIDAgMTUtMjAzYzAtMTYgMC0xOCAyLTE5czItNCA0LTE5YzItMjggMS0yNiA2LTI2bDYgMXpNNjAgMTcybDQgNDcgMyAxOXYtMjFsLTEtMjAgNi0xIDkgMSA0IDEgMiA3IDEgOXYtMTNsMSAxNCA1IDgxIDUgODljMiAzNyAzIDQzIDQgNDNsMS01LTMtNTBjLTItNDktMy02Ni02LTkyYTI0ODkgMjQ4OSAwIDAgMS0zLTg3aDJsNiA3MSA0IDY4IDMgNTdjMSA0MCAxIDQwIDggNDBsNSAxYzAgMi0zIDgtNSA5bC0yMCAxYy0xNSAwLTE4IDAtMTktMmwtMi0yLTItMTYtMi0xNiAyLTMgMy0zLTMtMzYtMTAtMTMwYy0yLTEwLTUtMTktOS0yOC00LTgtNC0xMS03LTQxLTEtMjItMS0yMiA2LTIyaDVsMyAzMHptMzc2IDIxYzEgMS0xIDEtNCAxLTcgMC03IDEtOSAxOGE0MjUwIDQyNTAgMCAwIDAtMTMgMTQybC01IDNjLTQgNS01IDQtNS0zbDMtNTQgMi01N2E1OTg4IDU5ODggMCAwIDAtOCAxMTdjMCAxLTEgMi00IDJoLTR2LTExYzMtNDcgNS0xMDIgNS0xMTlzLTEtMjAtNy0yNGwtNC0zLTEyOC0xLTEzMSAxYy02IDItMTEgNi0xMiAxMWwxIDI0YTE0NjUwIDE0NjUwIDAgMCAxIDQgMTIxYy0zLTEtNS0zLTUtN2EyMjY0IDIyNjQgMCAwIDEtNy0xMDQgMzEyIDMxMiAwIDAgMS0zLTU2YzItMiAxNC0yIDE2OC0ybDE2NiAxem0tMjkyIDE0YzUgMCA2IDAgNiAycy0xIDItOCAybC03LTFoLTFjLTEgMS0yIDItMSAzIDEgMiAyIDMgOSAyYTcwMyA3MDMgMCAwIDAgMTEyIDMgNjAzIDYwMyAwIDAgMCAxMjctNWMwLTItMS0yLTEyLTJoLTExbC0xLTJjMC0yIDEtMiAxNC0yIDEyIDEgMTQgMSAxNiAzIDUgMyA1IDQgNCAzOGwtNSAxMTMtMTMyIDFIMTIydi0ybC0zLTM2YTc0NzggNzQ3OCAwIDAgMC00LTExMGM0LTYgMTEtOCAxOS03aDEwem0yMTEgMSAxIDItMTAzIDFjLTEwNSAwLTEwNSAwLTEwMS00bDIwMyAxem0tMjUwIDU1Yy0xIDMtMSAxLTEtNCAwLTQgMC02IDEtNHY4em0zMTcgODBoLTFsMS0ydjJ6bS0xMSAzOWMtMiA3LTEgNy01NyA3YTk4NjYgOTg2NiAwIDAgMS0xMTEtMWMtMi0yLTMtMi0yNi0yLTE4IDAtMjUgMS0zMCAybC0zOCAyaC0zMWwyOS0xYTQxMyA0MTMgMCAwIDAtMS0yaC0zMmwtMS0yYy0yLTMtMy0yMi0yLTIzbDMgMWMyIDIgMTggMiAxNDUgMiAxNTQgMCAxNDYgMCAxNTAtNWwzLTJ2MTBsLTEgMTR6bS0yOTkgNjQgOCAxLTIgOGMtMiAxNCAwIDEyLTE3IDEySDg2bC0xLTYtMi0xMXYtNWgxMGwxOSAxem0wIDMxYy0xIDEwLTEgMTAtMTEgMTBzLTExLTEtMTEtMTF2LTZoMjNsLTEgN3ptMzEwIDBjLTEgMTAgMCAxMC0xMyAxMC0xMSAwLTExIDAtMTMtMTBsLTItNmg4bDE0LTFoN2wtMSA3eiIvPjxwYXRoIGQ9Ik0yMTkgNDhoLTVjLTQgMS00IDEwIDAgMTFhMTE1NCAxMTU0IDAgMCAwIDkwLTFjMi0yIDEtNi0xLTgtMS0yLTYtMi00Mi0zbC00MiAxem0xOCA2LTEgNXYtOGMxLTIgMS0xIDEgM3ptMTcgMC0xIDUtMS01IDEtNCAxIDR6bTcgMC0xIDUtMS01IDEtNCAxIDR6bS0zOCAxLTEgNC0xLTQgMS00IDEgNHptNyAwLTEgNC0xLTQgMS00IDEgNHptNDUgMC0xIDQtMS00IDEtNCAxIDR6bTctMS0xIDRjLTEgMS0xLTEtMS0zbDEtNCAxIDN6bTcgMS0xIDQtMS00IDEtNCAxIDR6bTI4LTYgMjkgMWMzNyAwIDQ1IDEgNDcgNGwzIDYgMiA3di0yYzAtNy0zLTEyLTYtMTVsLTM5LTJjLTI1IDAtMzcgMC0zNiAxeiIvPjxwYXRoIGQ9Ik0zODcgNTVjMyA0IDMgMTIgMCAxNGwtNiAyYy01IDAtNSAwLTMgMSAzIDEgOSAxIDExLTIgNC0zIDItMTYtMi0xNy0yLTEtMSAwIDAgMnpNMTg2IDcxbDkxIDFhMjA0MSAyMDQxIDAgMCAwLTkxLTF6bTEzNSAxNSAxMyAxYzEyIDAgMTcgMCAxNi0xaC0yOXptLTEwIDd6bS0xNzkgMyA1IDFjMiAwIDIgMCAwLTFsLTUtMWMtMiAwLTIgMCAwIDF6bTgzIDUwYy00IDAtNCAyIDEgMmw0LTFjMC0xLTEtMi01LTF6bS05NyAxYy0xIDEgMSAxIDQgMWw0LTEtNC0xLTQgMXptNTkgMGMtMSAxIDEgMSAzIDFsNC0xLTMtMS01IDF6bTg4IDAtMSAxYzEgMSA4IDAgOC0xaC03em01NiAwLTEgMWg5Yy0xLTItNi0yLTgtMXptNjUgMCAxIDEgMiAxYzIgMCAyIDAgMS0xIDAtMi00LTMtNC0xem0tMjk4IDFjLTIgMS0xIDIgMyAybDQtMWMwLTEtMS0yLTMtMmwtNCAxem0zMjcgMGMtMiAxLTEgMiAzIDJsNC0xYzAtMi00LTItNy0xem0tMjAgMi03IDFjLTcgMC0xMiAzLTE0IDgtNCA3LTIgMTQgNCAxOSA0IDQgMTIgNCAxNyAxIDctNCAxMC0xNSA2LTIybC0zLTZjLTItMi0yLTMtMy0xem0wIDQgNSA1djhsLTEgMWMtMSAwLTEgMSAwIDB2NWMtNCA2LTE0IDgtMjAgMy01LTMtNi03LTUtMTEgMS02IDItOCA2LTEwIDUtNCAxMC00IDE1LTF6Ii8+PHBhdGggZD0iTTM4MyAxNTRjLTkgNC0xMCAxNC0yIDIwIDYgNSAxNi0xIDE2LTlzLTctMTQtMTQtMTF6bS0xMTktMWMtNiAzLTggNy05IDEzIDAgNiAwIDYgNCAxMHM0IDQgMTAgNGM2IDEgNyAwIDEwLTIgNi02IDgtMTQgNC0yMC00LTctMTMtOS0xOS01em0xNCAyYzQgMiA2IDcgNCAxMXY1Yy02IDEwLTE4IDExLTI0IDItNC02LTEtMTQgNS0xOGwtMiAyYy0zIDUtNCA5LTEgMTQgMiAzIDcgNSAxMCA1bDMtMSA0LTNjNC02IDItMTUtNC0xOC0zLTEtMy0xLTEtMWw2IDJ6bS0xNjYgMWMtNCA2LTIgMTYgMyAxOCA1IDMgMTAgMiAxNC0xIDItMyAzLTUgMy04IDAtNS01LTExLTEwLTExaC0zbDEgOGMwIDYgMCA3LTEgNmwtMS04YzEtNyAxLTcgNC03IDQgMCA5IDQgMTEgOCAxIDQgMiA0IDIgMGwtMS0zLTMtM2MtNC0zLTQtMy0xMC0zLTcgMC03IDAtOSA0em01LTMtMiAxYzAgMS0xIDEgMCAwbDItMXptNTYgMWMtOSA2LTggMTkgMSAyNSAxMCA2IDIyLTIgMjItMTQgMC0zIDAtMy0xLTEtMSAzLTEgMy0xLTFzMC01LTMtOGMtNC0zLTUtMy0xMC0zbC04IDJ6bTE1IDFjNCAzIDYgOCA0IDEyLTEgMiAwIDQgMSAybDEtMWMwIDMtNCA4LTggMTAtNiAyLTEzLTEtMTYtNi0yLTMtMi0xMS0xLTlsMSAzYy0xIDIgMCAzIDQgNiAyIDMgMTAgNCAxMCAzbDMtMSAyLTJ2LTJjMi0yIDItNiAxLTktMy04LTE0LTktMTgtMmwtMiAyYy0yIDAgMS00IDQtNiA1LTMgMTAtMyAxNCAwem0yMS0xYy0xMCA2LTkgMjAgMSAyNSA3IDQgMTUgMSAxOS01IDMtNSAzLTggMC0xMy0yLTQtNC02LTktOHMtNy0xLTExIDF6bTE0IDJjMyAyIDUgNSA1IDExIDEgNSAxIDUtMiA4LTcgNS0xNCA1LTIwLTItMy0zLTQtNy0yLTd2MmMwIDEgMCAyIDEgMWwyIDJjMyA0IDggNiAxMyA0IDctNCA4LTE0IDItMTgtMy0zLTMtNCAxLTF6bS0xNCAxLTMgNC0xIDFjMC0yIDQtNyA1LTdsLTEgMnptMjEgMTBjLTEgMS0xIDAtMS0xczAtMiAxLTF2MnptODctMTNjLTkgNi05IDE5LTEgMjUgMTMgOCAyOC04IDE5LTIwLTQtNy0xMy05LTE4LTV6bTUgMGMtNCAxLTYgMy04IDctNCA5IDcgMTggMTYgMTNsNC00YzItNCAwLTEwLTMtMTNsLTItM2MyIDAgNiA2IDcgMTAgMiA1IDEgOC0zIDEyLTMgMy04IDMtMTIgMnMtOS02LTgtOGwtMS0xIDEtOWMxLTQgNy03IDEwLTcgMiAwIDIgMC0xIDF6bS0yMzUgMGMtNSAzLTYgMTEtMyAxNSA0IDYgOSA3IDE0IDIgNi02IDItMTgtNi0xOGwtNSAxem0zIDhjMCA2IDAgNi0xIDUtMy00LTItMTIgMS0xMnY3em04LTVjMSAyIDEgMi0xIDEtMS0yLTEtMi0xIDJsLTEgNmMtMSAyLTIgMS0xLTVsMS02IDMgMnptMiA2YzAgNS00IDktOSA5bC00LTFoNGMzIDAgNCAwIDYtM2wyLTUgMS0zdjN6bTMxMi03Yy0zIDMtMyA0LTMgOCAwIDYgNCAxMCA5IDEwbDYtMmMzLTIgNi02IDYtOSAwLTIgMC0yLTEgMS0zIDktMTUgMTEtMTkgMnYtNWMxLTIgMS0yIDEgMiAwIDUgMyA4IDggOHM4LTMgOS0xMGMxLTMgMS0zLTMtNi01LTMtOC0zLTEzIDF6bTcgNWMwIDktMiA5LTIgMXYtNmwtMSA1LTEgNGMtMi0zLTEtNyAxLTggMi0zIDMtMiAzIDR6bTYgMS0yIDV2LTFsLTEtOC0xLTQgMiAzIDIgNXptLTI4MS0xYy0yIDItMSA1IDMgNSAyIDAgMy0xIDMtMiAwLTItMi01LTMtNWwtMyAyem05IDBjLTEgMSAwIDUgMiA1czMtMyAyLTUtMy0zLTQgMHptODUtMS0xIDVjMSA3IDEwIDYgMTAtMSAwLTQtNi03LTktNHptNTcgMWMtMyAyLTIgNSAwIDcgMyAzIDcgMiA4LTIgMy01LTQtMTAtOC01em01Mi0xYy0yIDEtMSA1IDIgNmwzLTNjMS0zLTItNS01LTN6bTggMWMtMSAzIDAgNSAzIDUgMiAwIDMtMSAzLTRzLTQtNC02LTF6Ii8+PHBhdGggZD0iTTEzNiAxNjVjMCA1IDAgNi0zIDktNSA2LTE1IDctMjEgMC0zLTMtNC0zLTEgMSA2IDggMTkgOCAyNCAwIDItNCAzLTExIDEtMTR2NHptLTI4IDFjMCAzIDEgNCAxIDJ2LTRjMC0yLTEtMS0xIDJ6bS0xOCAxMyAzIDEgMy0xLTQtMWMtMiAwLTMgMC0yIDF6bTMyNSAwIDQgMSAzLTEtNC0xLTQgMXptMTYgMjM0Yy0xIDUtOCAxMy0xMyAxNGwtNyAyYy0zIDAtMyAwIDEgMWExOSAxOSAwIDAgMCAyMC0xOGMwLTItMS0yLTEgMXpNMTgxIDI2N2wtNCA0Yy0yIDMtMSAzMSAxIDM1IDEgNCA1IDggOCA5bDY4IDFjNzIgMCA3MCAwIDc0LTcgMi0yIDItNSAzLTE5IDAtMTQgMC0xNi0yLTE5LTMtNiAwLTYtNzYtNi02NiAwLTY5IDAtNzIgMnptLTQ1IDEwOXptMSAzaDhjMi0xIDAtMS00LTEtNSAwLTcgMS00IDF6bTQzIDF6Ii8+PC9zdmc+";
+            
+            const translation = "en";
+            let recipes_list = [];
+            let multipliers_list = [];
+            let uid_list = [];
+            let perks;
+            let recipes;
+            let items;
+
+            let uid = 0;
+            let uidToIndex = new Map();
+            let menuShown = false;
+            function clearGameDataCache() {
+                const CACHE_KEY = 'stalcraft_game_data';
+                try {
+                    localStorage.removeItem(CACHE_KEY);
+                    console.log('Stalcraft game data cache has been cleared.');
+                    document.getElementById('output').textContent = 'Cache cleared. Click "Load Game Data" to fetch again.';
+                } catch (error) {
+                    console.error('Could not clear cache:', error);
+                }
+            }
+            async function fetchAndCacheGameData(cacheDurationMinutes = 60 * 24) {
+                const CACHE_KEY = 'stalcraft_game_data';
+                const CACHE_DURATION_MS = cacheDurationMinutes * 60 * 1000;
+
+                const URLS = {
+                    listing: 'https://raw.githubusercontent.com/EXBO-Studio/stalcraft-database/main/global/listing.json',
+                    hideout: 'https://raw.githubusercontent.com/EXBO-Studio/stalcraft-database/main/global/hideout_recipes.json'
+                };
+                try {
+                    const cachedItem = localStorage.getItem(CACHE_KEY);
+                    if (cachedItem) {
+                        const { timestamp, data } = JSON.parse(cachedItem);
+                        if (Date.now() - timestamp < CACHE_DURATION_MS) {
+                            console.log('Returning data from cache.');
+                            return data;
+                        } else {
+                            console.log('Cache is expired. Fetching fresh data.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error reading from localStorage:', error);
+                }
+                console.log('Fetching new data from network...');
+                try {
+                    const [listingResponse, hideoutResponse] = await Promise.all([
+                        fetch(URLS.listing),
+                        fetch(URLS.hideout)
+                    ]);
+
+                    if (!listingResponse.ok || !hideoutResponse.ok) {
+                        throw new Error(`HTTP error! Listing: ${listingResponse.status}, Hideout: ${hideoutResponse.status}`);
+                    }
+
+                    const [listingData, hideoutData] = await Promise.all([
+                        listingResponse.json(),
+                        hideoutResponse.json()
+                    ]);
+
+                    const combinedData = {
+                        listing: listingData,
+                        hideout: hideoutData
+                    };
+
+                    const cachePayload = {
+                        timestamp: Date.now(),
+                        data: combinedData
+                    };
+
+                    try {
+                        localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
+                        console.log('Data fetched and cached successfully.');
+                    } catch (error) {
+                        console.error('Error writing to localStorage. Data might be too large.', error);
+                    }
+
+                    return combinedData;
+
+                } catch (error) {
+                    console.error('Failed to fetch or process game data:', error);
+                    return null;
+                }
+            }
+            function toggleRecipeMenu() {
+                const menu = document.querySelector('.overlay-menu');
+                if (menu.classList.contains("active")) {
+                    menu.classList.remove("active");
+                }else{
+                    menu.classList.add("active");
+                }
+                menuShown = !menuShown;
+                const recipes_select = document.querySelector("#select-recipe");
+                if (recipes_select.children.length == recipes.length) {
+                    return;
+                }
+                for (let index = 0; index < recipes.length; index++) {
+                    const recipe = recipes[index];
+                    const recipeResultId = recipe.result[0].item;
+                    const recipeItem = getItem(recipeResultId);
+                    const recipeItemNode = createItemNode(recipeItem, "", () => {addRecipe(index)});
+                    recipes_select.appendChild(recipeItemNode);
+                }
+            }
+            function setFilter(name, inputOutputToggle) {
+                document.getElementById("input-output-toggle").checked = inputOutputToggle;
+                document.getElementById("item-filter-input").value = name.toLowerCase();
+                const menu = document.querySelector('.overlay-menu');
+                if (!menuShown) {
+                    toggleRecipeMenu();
+                }
+                filterMenuUpdate();
+
+            }
+            function filterMenuUpdate() {
+                const recipes_select = document.querySelector("#select-recipe");
+                const ioToggle = !document.getElementById("input-output-toggle").checked;
+                const item_name = document.getElementById("item-filter-input").value.toLowerCase();
+                for (let index = 0; index < recipes.length; index++) {
+                    const recipe = recipes[index];
+                    const itemName = recipe.result[0].item;
+                    const item = getItem(itemName);
+                    const itemTname = item.name.lines[translation].toLowerCase();
+                    recipes_select.children[index].style.visibility = "visible";
+                    if (item_name == "") {
+                        continue;
+                    }
+                    if (ioToggle) {
+                        let q = false;
+                        recipe.ingredients.forEach(ingredient => {
+                            const ingItemName = ingredient.item;
+                            const ingItem = getItem(ingItemName);
+                            const ingItemTname = ingItem.name.lines[translation].toLowerCase();
+                            if (ingItemTname.includes(item_name)) {
+                                q = true;
+                            }
+                        });
+                        if (!q) {
+                            recipes_select.children[index].style.visibility = "hidden";
+                        }
+                    }else{
+                        if (!itemTname.includes(item_name)) {
+                            recipes_select.children[index].style.visibility = "hidden";
+                        }
+                    }
+                }
+            }
+            function getItemImageSrc(item) {
+                if (item.icon == null) {
+                    return FALLBACK_IMAGE_SRC;
+                }
+                return "https://raw.githubusercontent.com/EXBO-Studio/stalcraft-database/refs/heads/main/global" + item.icon;
+            }
+            function getWhereImageSrc(where) {
+                if (where == "kitchen_table") {
+                    return KitchenSVGICON;
+                }
+                return FALLBACK_IMAGE_SRC;
+            }
+            function calculate_input_output_items() {
+                let input = new Map();
+                let output = new Map();
+                let iterator = 0;
+                let energy = 0;
+                recipes_list.forEach(recipe => {
+                    if (multipliers_list[iterator] == 0) {
+                        iterator += 1;
+                        return;
+                    }
+                    const result = recipe.result[0];
+                    const result_item_id_string = result.item;
+                    const ingredients = recipe.ingredients;
+                    if (input.has(result_item_id_string)) {
+                        const count = input.get(result_item_id_string);
+                        const item_provided = result.amount * multipliers_list[iterator];
+                        const delta = (count - item_provided);
+                        if (delta <= 0) {
+                            input.delete(result_item_id_string);
+                            if (delta != 0) {
+                                if (output.has(result_item_id_string)) {
+                                    output.set(result_item_id_string, output.get(result_item_id_string) + -delta);
+                                }else{
+                                    output.set(result_item_id_string, -delta);
+                                }
+                            }
+                        }else{
+                            input.set(result_item_id_string, delta);
+                        }
+                    }else{
+                        if (output.has(result_item_id_string)) {
+                            output.set(result_item_id_string, output.get(result_item_id_string) + result.amount * multipliers_list[iterator]);
+                        }else{
+                            output.set(result_item_id_string, result.amount * multipliers_list[iterator]);
+                        }
+                    }
+                    ingredients.forEach(item => {
+                        if (input.has(item.item)) {
+                            input.set(item.item, input.get(item.item) + item.amount * multipliers_list[iterator])
+                        }else{
+                            input.set(item.item, item.amount * multipliers_list[iterator]);
+                        }
+                        
+                    });
+                    energy += recipe.energy * multipliers_list[iterator];
+                    iterator += 1;
+                });
+                const io = Array.from(input, ([item, value]) => ({ item, value }));
+                const oo = Array.from(output, ([item, value]) => ({ item, value }));
+                return {io,oo, energy};
+            }
+            function getTargetItemDesiredValue(resultItem) {
+                return 1000;
+            }
+            function changeCountHandler(resultItem){
+                const value_to_set = getTargetItemDesiredValue(resultItem);
+                let topmostRecipe;
+                let iter = 0;
+                let resourcesPerRecipe = 0;
+                let offset = 0;
+                for (let index = 0; index < recipes_list.length; index++) {
+                    const recipe = recipes_list[index];
+                    if (recipe.result[0].item == resultItem.item) {
+                        topmostRecipe = recipe;
+                        resourcesPerRecipe = recipe.result[0].amount;
+                        iter = index;
+                        break;
+                    }
+                    recipe.ingredients.forEach(ingredient => {
+                        if (ingredient.item == resultItem.item) {
+                            offset += ingredient.amount * multipliers_list[index];
+                        }
+                    });
+                }
+                const mul = Math.floor((value_to_set + offset + resourcesPerRecipe - 1) / resourcesPerRecipe);
+                multipliers_list[iter] = mul;
+                full_render();
+            }
+            function getItem(id) {
+                return items.find(this_item => {
+                    return this_item.data.endsWith("/" + id + ".json");
+                });
+            }
+            function getItemColor(item) {
+                switch (item.color) {
+                    case "RANK_LEGEND":
+                        return "#FFFF00"
+                    case "RANK_MASTER":
+                        return "#FF0000";
+                    case "RANK_VETERAN":
+                        return "#FF00FF";
+                    case "RANK_STALKER":
+                        return "#0000FF";
+                    case "RANK_NEWBIE":
+                        return "#00FF00";
+                    case "DEFAULT":
+                        return "#FFFFFF"
+                    case "ENERGY":
+                        return "#5555FF"
+                    default:
+                        console.log(item.color);
+                        return "#FF0000";
+                }
+            }
+            function createItemNode(item, labelContent = "", onclick = () => {}){
+                let x = document.createElement("div");
+                let item_color = getItemColor(item);
+                x.style = `max-width: 64px; max-height: 64px;width: 64px; height: 64px; background-color: #FFFFFF20;border: 1px solid ${item_color};box-sizing: border-box;-moz-box-sizing: border-box;-webkit-box-sizing: border-box;`;
+                x.onclick = onclick;
+                let img = document.createElement("img");
+                img.width = 64;
+                img.height = 64;
+                img.src = getItemImageSrc(item);
+                img.style.objectFit = "contain";
+                img.title = item.name.lines[translation];
+                x.appendChild(img);
+                if(labelContent != ""){
+                    img.height = 40;
+                    let lbl = document.createElement("label");
+                    lbl.className = "label_val";
+                    lbl.textContent = labelContent;
+                    lbl.style.bottom = 34;
+                    x.appendChild(lbl);
+                }
+                return x;
+            }
+            function addRecipe(index) {
+                recipes_list.push(recipes[index]);
+                multipliers_list.push(1);
+                full_render();
+            }
+            function changeMultiplier(uid, value){
+                multipliers_list[uidToIndex.get(uid)] = value;
+                full_render();
+            }
+            function changePosition(uid, up) {
+                const index = uidToIndex.get(uid);
+
+                if (up) {
+                    if (index === 0) return;
+                    [recipes_list[index], recipes_list[index - 1]] = [recipes_list[index - 1], recipes_list[index]];
+                    [multipliers_list[index], multipliers_list[index - 1]] = [multipliers_list[index - 1], multipliers_list[index]];
+
+                } else {
+                    if (index >= recipes_list.length - 1) return;
+                    [recipes_list[index], recipes_list[index + 1]] = [recipes_list[index + 1], recipes_list[index]];
+                    [multipliers_list[index], multipliers_list[index + 1]] = [multipliers_list[index + 1], multipliers_list[index]];
+                }
+                
+                full_render();
+            }
+            function deleteRecipe(uid) {
+                const indexToDelete = uidToIndex.get(uid);
+
+                if (indexToDelete > -1) {
+                    recipes_list.splice(indexToDelete, 1);
+                    multipliers_list.splice(indexToDelete, 1);
+                }
+                
+                full_render();
+            }
+            function createRecipeNode(recipe, mult, index, darken = false) {
+                const recipeUID = uid; uid++;
+                uidToIndex.set(recipeUID, index);
+                const where = recipe.bench;
+                
+                const energy = recipe.energy;
+                const resultItem = getItem(recipe.result[0].item);
+                const resultItemCount = recipe.result[0].amount * mult;
+                const ingredients = recipe.ingredients;
+
+                const normalColor = darken ?"#929292":"#B2B2B2";
+                const normalColorNext = darken ?"#727272":"#929292";
+                const x = document.createElement("div");
+                x.className = "recipe-entry";
+                const actionDiv = document.createElement("div");
+                actionDiv.style = `width: 5%;height: 100%;background-color: ${normalColor};`;
+                const buttonUp = document.createElement("button"); buttonUp.textContent = "u"; buttonUp.onclick = () => {changePosition(recipeUID, true)}; actionDiv.appendChild(buttonUp);
+                const buttonDown = document.createElement("button"); buttonDown.textContent = "d"; buttonDown.onclick = () => {changePosition(recipeUID, false)}; actionDiv.appendChild(buttonDown);
+                const buttonRemove = document.createElement("button"); buttonRemove.textContent = "×"; buttonRemove.onclick = () => {deleteRecipe(recipeUID)}; actionDiv.appendChild(buttonRemove);
+                const multiplierField = document.createElement("input"); multiplierField.value = mult; multiplierField.onchange = () => {changeMultiplier(recipeUID, multiplierField.value)}; actionDiv.appendChild(multiplierField);
+                multiplierField.type = "number"; multiplierField.style = "width:50%;height:50%;";
+                x.appendChild(actionDiv);
+                const recipeDiv = document.createElement("div");
+                recipeDiv.style = `width: 64px;height: 100%;background-color: ${normalColorNext};`;
+                recipeDiv.appendChild(createItemNode(resultItem));
+                x.appendChild(recipeDiv);
+                const whereDiv = document.createElement("div");
+                whereDiv.style = `width: 64 px;height: 64px;background-color: ${normalColor};`;
+                const whereImg = document.createElement("img");
+                whereImg.src = getWhereImageSrc(where);
+                whereImg.title = where;
+                whereImg.style = "max-width: 64px; max-height: 64px;width: 64px; height: 64px;border: 1px solid black;box-sizing: border-box;-moz-box-sizing: border-box;-webkit-box-sizing: border-box;"
+                whereDiv.appendChild(whereImg);
+                x.appendChild(whereDiv);
+                const xpDiv = document.createElement("div");
+                xpDiv.style = `width: 4%;height: 100%;background-color: ${normalColorNext};`;
+                xpDiv.textContent = 123;
+                x.appendChild(xpDiv);
+                const energyDiv = document.createElement("div");
+                energyDiv.style.cssText = `
+                width: 6%;height: 100%;background-color: ${normalColor};display: flex;flex-direction: column;justify-content: center;align-items: center;text-align: center;`;
+                energyDiv.innerHTML = `${energy} x ${mult}<br>${energy * mult}`;
+                x.appendChild(energyDiv);
+                const productDiv = document.createElement("div");
+                productDiv.style = `width: 64px;height: 100%;background-color: ${normalColorNext};`;
+                const resultItemName = resultItem.name.lines[translation];
+                productDiv.appendChild(createItemNode(resultItem,resultItemCount, () => {setFilter(resultItemName,false);}));
+                x.appendChild(productDiv);
+                const gap = document.createElement("div");
+                gap.style = "width:16px; height:6px;";
+                x.appendChild(gap);
+                const ingredientsDiv = document.createElement("div");
+                ingredientsDiv.style = `width: 60%;height: 100%;background-color: ${normalColor};display: flex;gap: 2px;`;
+                ingredients.forEach(ingredient => {
+                    const item = getItem(ingredient.item);
+                    const itemName = item.name.lines[translation];
+                    const itemRequired = ingredient.amount * mult;
+                    ingredientsDiv.appendChild(createItemNode(item,itemRequired,() => {setFilter(itemName,true);}));
+                });
+                x.appendChild(ingredientsDiv);
+                return x;
+            }
+            function full_render() {
+                const inp = document.getElementById("input-items");
+                const out = document.getElementById("output-items");
+                const recipeBody = document.getElementById("recipe-body");
+                while (inp.firstChild) {
+                    inp.firstChild.remove();
+                }
+                while (out.firstChild) {
+                    out.firstChild.remove();
+                }
+                while (recipeBody.children.length > 1) {
+                    recipeBody.removeChild(recipeBody.children[1]);
+                }
+                const v = calculate_input_output_items();
+                v.io.forEach(io => {
+                    const item = getItem(io.item);
+                    const itemName = item.name.lines[translation];
+                    inp.appendChild(createItemNode(item, io.value, () => {setFilter(itemName,true);}));
+                });
+                if (v.energy != 0) {
+                    inp.appendChild(createItemNode({name: {lines: {"ru":"energy","en":"energy","es":"energy","fr":"energy"}}, color: "ENERGY"}, v.energy));
+                }
+                let i = 0;
+                v.oo.forEach(oo => {
+                    const item = getItem(oo.item);
+                    const copyi = i;
+                    out.appendChild(createItemNode(item, oo.value, () => {changeCountHandler(v.oo[copyi])}));
+                    i += 1;
+                });
+                uidToIndex.clear();
+                for (let index = 0; index < recipes_list.length; index++) {
+                    const recipe = recipes_list[index];
+                    recipeBody.appendChild(createRecipeNode(recipe, multipliers_list[index], index, index % 2 == 0));
+                }
+            }
+            async function test() {
+                const x = await fetchAndCacheGameData();
+                perks = x.hideout.perks;
+                recipes = x.hideout.recipes;
+                items = x.listing;
+
+                console.log(perks);
+                console.log(recipes);
+                console.log(items);
+
+                recipes_list.push(recipes[336]);
+                multipliers_list.push(4);  // ideal x4
+                recipes_list.push(recipes[335]);
+                multipliers_list.push(2); // ideal x2
+                recipes_list.push(recipes[334]);
+                multipliers_list.push(3); // ideal x3
+                full_render();
+            }
+            test();
+        </script>
+    </html>
