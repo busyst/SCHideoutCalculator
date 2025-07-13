@@ -308,7 +308,7 @@
                 }
                 return FALLBACK_IMAGE_SRC;
             }
-            function calculate_input_output_items() {
+            function calculateInputOutputItems() {
                 let input = new Map();
                 let output = new Map();
                 let iterator = 0;
@@ -363,6 +363,8 @@
                 return 1000;
             }
             function changeCountHandler(resultItem){
+                // Thats incomplete as hell
+                return;
                 const value_to_set = getTargetItemDesiredValue(resultItem);
                 let topmostRecipe;
                 let iter = 0;
@@ -544,7 +546,7 @@
                 while (recipeBody.children.length > 1) {
                     recipeBody.removeChild(recipeBody.children[1]);
                 }
-                const v = calculate_input_output_items();
+                const v = calculateInputOutputItems();
                 v.io.forEach(io => {
                     const item = getItem(io.item);
                     const itemName = item.name.lines[translation];
@@ -572,16 +574,9 @@
                 recipes = x.hideout.recipes;
                 items = x.listing;
 
-                console.log(perks);
                 console.log(recipes);
                 console.log(items);
 
-                recipes_list.push(recipes[336]);
-                multipliers_list.push(4);  // ideal x4
-                recipes_list.push(recipes[335]);
-                multipliers_list.push(2); // ideal x2
-                recipes_list.push(recipes[334]);
-                multipliers_list.push(3); // ideal x3
                 full_render();
             }
             test();
